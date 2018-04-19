@@ -1,0 +1,2 @@
+# Kinect2_Recognition
+基于iai_kinect2开发的物体识别程序
