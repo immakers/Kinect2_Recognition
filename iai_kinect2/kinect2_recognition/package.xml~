@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>kinect2_recognition</name>
+  <name>kinect_recognition</name>
   <version>0.0.0</version>
   <description>The kinect_recognition package</description>
 

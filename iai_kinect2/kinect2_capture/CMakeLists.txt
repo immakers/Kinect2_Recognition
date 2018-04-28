@@ -1,31 +1,23 @@
 cmake_minimum_required(VERSION 2.8.3)
+project(kinect2_capture)
 
-project(kinect2_recognition)
-#set(cv_bridge_DIR /usr/local/share/cv_bridge/cmake)
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+ add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  kinect2_bridge
-  roscpp
-  std_msgs
-  image_transport
-  cv_bridge
+    kinect2_bridge
+    roscpp
+    std_msgs
+    image_transport
+    cv_bridge
 )
-
 ## System dependencies are found with CMake's conventions
-#set(OpenCV_DIR "/usr/local/opencv320/share/OpenCV")
+# find_package(Boost REQUIRED COMPONENTS system)
 find_package( OpenCV 2.4 REQUIRED)
-#include_directories(SYSTEM ${OPENCV_INCLUDE_DIRS} /usr/local/opencv320/include)
-#find_package("/usr/local/opencv320/include/opencv2")
-find_package(PCL 1.7)
-message("OPENCV_INCLUDE_DIRS = ${OpenCV_INCLUDE_DIRS}")
-message("OPENCV_LIBRARIES = ${OpenCV_LIBRARIES}")
 
-add_definitions(${PCL_DEFINITIONS})
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -79,7 +71,7 @@ add_definitions(${PCL_DEFINITIONS})
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   std_msgs
+#   std_msgs  # Or other packages containing msgs
 # )
 
 ################################################
@@ -113,8 +105,8 @@ add_definitions(${PCL_DEFINITIONS})
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES kinect_recognition
-#  CATKIN_DEPENDS kinect2_bridge roscpp std_msgs
+#  LIBRARIES kinect2_capture
+#  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
 
@@ -125,16 +117,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include/kinect_recognition
-  ${catkin_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
+# include
+ ${catkin_INCLUDE_DIRS}
+ ${OpenCV_INCLUDE_DIRS}
 )
-
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/kinect_recognition.cpp
+#   src/${PROJECT_NAME}/kinect2_capture.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -145,13 +135,13 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(${PROJECT_NAME}_node src/kinect_recognition_node.cpp)
+ add_executable(${PROJECT_NAME}_node src/kinect2_capture_node.cpp)
 
- ## Rename C++ executable without prefix
- ## The above recommended prefix causes long target names, the following renames the
- ## target back to the shorter version for ease of user use
- ## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
- # set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
+## Rename C++ executable without prefix
+## The above recommended prefix causes long target names, the following renames the
+## target back to the shorter version for ease of user use
+## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
+# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -161,7 +151,6 @@ include_directories(
  target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
-   ${PCL_LIBRARIES}
  )
 
 #############
@@ -204,7 +193,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_kinect_recognition.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_kinect2_capture.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
