@@ -30,6 +30,8 @@ std::string rgb_video_path = video_save_path + "/rgb.avi";
 std::string depth_video_path = video_save_path + "/depth.avi";
 cv::VideoWriter depth_video_writer, rgb_video_writer;
 
+bool cap_bool = false;
+
 void RecognitionCallback(
         const sensor_msgs::ImageConstPtr image_rgb,
         const sensor_msgs::ImageConstPtr  image_depth,
@@ -46,13 +48,22 @@ void RecognitionCallback(
     image_rgb_show = mat_image_rgb.clone();
     image_depth_show = mat_image_depth.clone();
 
-    ROS_INFO("cols is %d",mat_image_rgb.cols);
-    ROS_INFO("rows is %d",mat_image_rgb.rows);
+//    ROS_INFO("cols is %d",mat_image_rgb.cols);
+//    ROS_INFO("rows is %d",mat_image_rgb.rows);
     //显示彩色图和深度图
     try
     {
         //cv::imshow(window_rgb_top, cv_bridge::toCvShare(image_rgb)->image);
         cv::imshow("rgb_video", image_rgb_show);
+        if(cv::waitKey(10)=='s')
+        {
+          cap_bool = false;
+        }
+        if(cv::waitKey(10)=='c')
+        {
+          cap_bool = true;
+        }
+
     }
     catch (cv_bridge::Exception& e)
     {
@@ -69,8 +80,9 @@ void RecognitionCallback(
 
 //    ROS_INFO("write depth video");
 //    depth_video_writer<<image_depth_show;
-    ROS_INFO("writer rgb video");
-    rgb_video_writer<<image_rgb_show;
+//    ROS_INFO("writer rgb video");
+    ROS_INFO_STREAM("the capturing state is "<<cap_bool);
+    if(cap_bool==true)rgb_video_writer<<image_rgb_show;
 
 }
 
