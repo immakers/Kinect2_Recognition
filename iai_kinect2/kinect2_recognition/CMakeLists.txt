@@ -22,8 +22,8 @@ find_package( OpenCV 2.4 REQUIRED)
 #include_directories(SYSTEM ${OPENCV_INCLUDE_DIRS} /usr/local/opencv320/include)
 #find_package("/usr/local/opencv320/include/opencv2")
 find_package(PCL 1.7)
-message("OPENCV_INCLUDE_DIRS = ${OpenCV_INCLUDE_DIRS}")
-message("OPENCV_LIBRARIES = ${OpenCV_LIBRARIES}")
+#message("OPENCV_INCLUDE_DIRS = ${OpenCV_INCLUDE_DIRS}")
+#message("OPENCV_LIBRARIES = ${OpenCV_LIBRARIES}")
 
 add_definitions(${PCL_DEFINITIONS})
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -125,12 +125,13 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include/kinect_recognition
+  include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
 
+LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/lib)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -162,6 +163,9 @@ include_directories(
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
    ${PCL_LIBRARIES}
+   "jcar_detection"
+   "tensorflow_cc"
+   "tensorflow_framework"
  )
 
 #############
