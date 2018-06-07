@@ -1,6 +1,10 @@
+//采集模式:采集图片还是采集视频
+//#define cap_video
+
 //标准C++头文件
 #include <iostream>
 #include <string>
+#include <stdio.h>
 
 //OpenCV头文件
 #include<opencv2/opencv.hpp>
@@ -19,18 +23,31 @@
 #include <image_transport/subscriber_filter.h>
 #include <kinect2_bridge/kinect2_definitions.h>
 
+////文件路径配置文件
+//#include"KinectCaptureConfig.h"
+
 //kinect相机话题
 std::string image_rgb_str =  "/kinect2/qhd/image_color_rect";
 std::string image_depth_str = "/kinect2/qhd/image_depth_rect";
 std::string cam_info_str = "/kinect2/qhd/camera_info";
 
-//图像保存
-std::string video_save_path = "/home/zhenglongyu/data/kinect_recognition";
+std::string file_save_path = "/home/zhenglongyu/data/kinect_recognition";
+
+#ifdef cap_video
+//视频保存
+std::string video_save_path = file_save_path+"/video";
 std::string rgb_video_path = video_save_path + "/rgb.avi";
 std::string depth_video_path = video_save_path + "/depth.avi";
 cv::VideoWriter depth_video_writer, rgb_video_writer;
-
 bool cap_bool = false;
+#else
+//图像保存
+
+std::string image_save_path = file_save_path + "/image";
+std::string rgb_image_path = image_save_path + "/rgb";
+std::string depth_image_path = image_save_path + "/depth";
+int image_count = 0;
+#endif
 
 void RecognitionCallback(
         const sensor_msgs::ImageConstPtr image_rgb,
@@ -48,22 +65,33 @@ void RecognitionCallback(
     image_rgb_show = mat_image_rgb.clone();
     image_depth_show = mat_image_depth.clone();
 
-//    ROS_INFO("cols is %d",mat_image_rgb.cols);
-//    ROS_INFO("rows is %d",mat_image_rgb.rows);
+    //    ROS_INFO("cols is %d",mat_image_rgb.cols);
+    //    ROS_INFO("rows is %d",mat_image_rgb.rows);
     //显示彩色图和深度图
     try
-    {
-        //cv::imshow(window_rgb_top, cv_bridge::toCvShare(image_rgb)->image);
+    {     
         cv::imshow("rgb_video", image_rgb_show);
-        if(cv::waitKey(10)=='s')
+#ifdef cap_video
+        if(cv::waitKey(27)=='s')
         {
-          cap_bool = false;
+            cap_bool = false;
         }
-        if(cv::waitKey(10)=='c')
+        if(cv::waitKey(27)=='c')
         {
-          cap_bool = true;
+            cap_bool = true;
         }
-
+#else
+        if(cv::waitKey(27)=='p')
+        {
+            char buffer_rgb[512], buffer_depth[512];
+            std::sprintf(buffer_rgb, "%s/rgb_%d.jpg",rgb_image_path.c_str(), image_count);
+            std::sprintf(buffer_depth, "%s/depth_%d.jpg",depth_image_path.c_str(), image_count);
+            cv::imwrite(buffer_rgb,mat_image_rgb);
+            cv::imwrite(buffer_depth,mat_image_depth);
+            image_count++;
+            ROS_INFO_STREAM("you have captured "<<image_count<<"images!!!");
+        }
+#endif
     }
     catch (cv_bridge::Exception& e)
     {
@@ -78,19 +106,16 @@ void RecognitionCallback(
         ROS_ERROR("Could not show depth images!");
     }
 
-//    ROS_INFO("write depth video");
-//    depth_video_writer<<image_depth_show;
-//    ROS_INFO("writer rgb video");
-    ROS_INFO_STREAM("the capturing state is "<<cap_bool);
+#ifdef cap_video
+    ROS_INFO_STREAM("The capturing state is "<<cap_bool);
     if(cap_bool==true)rgb_video_writer<<image_rgb_show;
-
+#endif
 }
 
-//void ReleaseRecognition( )
-//{
-////    cv::destroyAllWindows();
-//}
-
+void ReleaseRecognition( )
+{
+    cv::destroyAllWindows();
+}
 
 int main(int argc, char ** argv)
 {
@@ -103,26 +128,21 @@ int main(int argc, char ** argv)
     message_filters::Subscriber<sensor_msgs::Image>image_depth_sub(nh, image_depth_str, 1);
     message_filters::Subscriber<sensor_msgs::CameraInfo>cam_info_sub(nh,  cam_info_str, 1);
 
-//    //发布话题
-//    image_transport::ImageTransport it(nh);
-//    image_rgb_pub = it.advertise(window_rgb_top, 1);
-//    image_depth_pub = it.advertise(window_depth_top, 1);
-
-//    //初始化识别过程
-//    InitRecognition(window_rgb_top, window_depth_top);
+    //初始化窗口
     cv::namedWindow("rgb_video");
     cv::namedWindow("depth_video");
     cv::startWindowThread();
-
+#ifdef cap_video
     if(depth_video_writer.open(depth_video_path, CV_FOURCC('M', 'J', 'P', 'G'),33,cv::Size(960, 540))==false)
     {
-      ROS_ERROR("could not open depth video writer!!!");
+        ROS_ERROR("could not open depth video writer!!!");
     }
 
     if(rgb_video_writer.open(rgb_video_path, CV_FOURCC('M', 'J', 'P', 'G'),33,cv::Size(960,540))==false)
     {
-      ROS_ERROR("could not open rgb video writer!!!");
+        ROS_ERROR("could not open rgb video writer!!!");
     }
+#endif
 
     //同步深度图和彩色图
     message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> sync(image_rgb_sub, image_depth_sub, cam_info_sub, 10);
@@ -131,10 +151,11 @@ int main(int argc, char ** argv)
     //ros主循环
     ros::spin();
     while(ros::ok());
+#ifdef cap_video
     depth_video_writer.release();
     rgb_video_writer.release();
-
+#endif
     //释放资源
-//    ReleaseRecognition();
+    ReleaseRecognition();
     return 0;
 }
