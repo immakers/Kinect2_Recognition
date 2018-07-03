@@ -5,6 +5,9 @@ project(kinect2_recognition)
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 
+##whether to show the clouds
+#set(SHOWCLOUD 1)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -26,6 +29,12 @@ find_package(PCL 1.7)
 #message("OPENCV_LIBRARIES = ${OpenCV_LIBRARIES}")
 
 add_definitions(${PCL_DEFINITIONS})
+
+##the definitions to decide whether to show the cloud
+#if(SHOWCLOUD)
+#add_definitions(-DSHOWCLOUD)
+#endif()
+
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
