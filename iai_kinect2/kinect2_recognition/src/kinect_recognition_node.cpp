@@ -1,6 +1,7 @@
 //标准C++头文件
 #include <iostream>
 #include <string>
+#include<stdio.h>
 
 //OpenCV头文件
 #include<opencv2/opencv.hpp>
@@ -68,17 +69,13 @@ image_transport::Publisher image_depth_pub;
 std::string detect_target_str = "detect_target";
 std::string detect_result_str = "detect_result";
 ros::Publisher detect_result_pub;
+ros::Time timer;
 
 //机器手采集指令宏
 bool recognition_on = false;
 
 void InitRecognition()
 {
-    //    ros::NodeHandle nh;
-    //    nh.param("show_cloud",show_cloud,false);
-    //    std::string model_path;
-    //    nh.param("model_path",model_path,std::string("/home/zhenglongyu/project/iai_kinect/src/iai_kinect2/kinect2_recognition/model"));
-    //    model_path+="/model.ckpt";
     // step 1
     if(!InitSession(model_path, 1, 960, 540, 3))
     {
@@ -86,6 +83,7 @@ void InitRecognition()
         return ;
     }
     ROS_INFO_STREAM("init success");
+    timer = ros::Time::now();
 }
 
 //bool PointCmp(cv::Point p1, cv::Point p2, cv::Point center)
@@ -362,26 +360,22 @@ void RecognitionCallback(
         //发送点云对应坐标
         detect_result_pub.publish(coordinate_vec);
 
+        //绘制识别框、对应的置信度、帧率
         for(size_t i = 0;i<Obj_Frames.size();i++)
         {
             cv::Point* vertexes = Obj_Frames[i].bbox;
             for(int j = 0; j < 4; j++)
-                cv::line(mat_image_rgb, vertexes[j], vertexes[(j + 1) % 4], cv::Scalar(255, 0, 0), 2);
+                cv::line(mat_image_rgb, vertexes[j], vertexes[(j + 1) % 4], cv::Scalar(255, 0, 0), 2);            
+            char buffer[100];
+            std::sprintf(buffer, "label:%d conf:%.2f", Obj_Frames[i].label, Obj_Frames[i].conf);
+            cv::putText(mat_image_rgb, buffer, vertexes[0], cv::FONT_HERSHEY_COMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
         }
-//            DrawQuadrilateral(mat_image_rgb, Obj_Frame);
-//            DrawQuadrilateral(mat_image_depth, Obj_Frame);
-
-//        ROS_INFO("the width is %d", mat_image_rgb.cols);
-//        ROS_INFO("the height is %d", mat_image_rgb.rows);
-
-        //    //转换图像到ros消息
-        //    sensor_msgs::ImagePtr rgb_image_msg = cv_bridge::CvImage(std_msgs::Header(), image_rgb->encoding , image_rgb_show).toImageMsg();
-        //    sensor_msgs::ImagePtr depth_image_msg = cv_bridge::CvImage(std_msgs::Header(), image_depth->encoding , image_depth_show).toImageMsg();
-
-        //    //广播图像消息
-        //    image_rgb_pub.publish(rgb_image_msg);
-        //    image_depth_pub.publish(depth_image_msg);
-
+        ros::Duration interval = ros::Time::now()-timer;
+        double rate = 1/interval.toSec();
+        timer = ros::Time::now();
+        char fr_rate[100];
+        std::sprintf(fr_rate, "%.4f FPS", rate);
+        cv::putText(mat_image_rgb, fr_rate, cv::Point(0,mat_image_rgb.rows), cv::FONT_HERSHEY_COMPLEX, 0.3, cv::Scalar(255, 255, 255), 1);
 
         //显示彩色图和深度图
         try
@@ -401,7 +395,6 @@ void RecognitionCallback(
         {
             ROS_ERROR("Could not convert depth images from '%s' to 'bgr8'.", image_depth->encoding.c_str());
         }
-
     }
     else
     {
@@ -443,13 +436,6 @@ int main(int argc, char ** argv)
     message_filters::Subscriber<sensor_msgs::Image>image_depth_sub(nh, image_depth_str, 1);
     message_filters::Subscriber<sensor_msgs::CameraInfo>cam_info_sub(nh,  cam_info_str, 1);
 
-    //    //发布话题
-    //    image_transport::ImageTransport it(nh);
-    //    image_rgb_pub = it.advertise(window_rgb_top, 1);
-    //    image_depth_pub = it.advertise(window_depth_top, 1);
-
-    //    //初始化识别过程
-    //    InitRecognition(window_rgb_top, window_depth_top);
     cv::namedWindow("rgb_video",CV_WINDOW_NORMAL);
     cv::namedWindow("depth_video",CV_WINDOW_NORMAL);
     cv::startWindowThread();

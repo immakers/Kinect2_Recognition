@@ -1,8 +1,7 @@
 #ifndef DETECTION_H
 #define DETECTION_H
 
-//#include <opencv2/core.hpp>
-#include<opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <vector>
 #include <string>
@@ -11,11 +10,16 @@ struct ObjInfo
 {
 	int label;
 	float conf;
-	cv::Rect bbox;
-	ObjInfo(){}
-	ObjInfo(int classes, float confidence, cv::Rect box)
-		:label(classes), conf(confidence), bbox(box)
-	{}
+	cv::Point bbox[4];
+
+	ObjInfo(int classes, float confidence, cv::Point *box)
+		:label(classes), conf(confidence)
+	{
+		bbox[0] = box[0];
+		bbox[1] = box[1];
+		bbox[2] = box[2];
+		bbox[3] = box[3];
+	}
 };
 
 /* step 1: 初始化会话
