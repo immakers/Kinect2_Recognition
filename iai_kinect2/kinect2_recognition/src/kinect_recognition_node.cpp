@@ -27,6 +27,9 @@
 #include<pcl/io/pcd_io.h>
 #include<pcl/point_cloud.h>
 #include<pcl/visualization/cloud_viewer.h>
+#include <pcl/features/integral_image_normal.h>
+#include<pcl/point_types.h>
+#include<pcl/features/normal_3d.h>
 
 //ssd_detection头文件
 #include"ssd_test/ssd_detection.h"
@@ -174,8 +177,7 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
     clouds.resize(rects.size());
     for(size_t rect_num = 0;rect_num<rects.size();rect_num++)
     {
-        cv::Point* rect = rects[rect_num].bbox;
-        PointCloud::Ptr temp_cloud(new PointCloud);
+        cv::Point* rect = rects[rect_num].bbox;        
         cv::Mat depth_masked;
         cv::Mat depth_mask = cv::Mat::zeros(image_depth.size(),CV_8UC1);
         std::vector<std::vector<cv::Point>> contour;
@@ -188,6 +190,11 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
         cv::drawContours(depth_mask,contour,0,cv::Scalar::all(255),-1);
         image_depth.copyTo(depth_masked,depth_mask);
 
+        PointCloud::Ptr temp_cloud(new PointCloud);
+        temp_cloud->width = depth_masked.cols;
+        temp_cloud->height = depth_masked.rows;
+        temp_cloud->is_dense = false;
+        temp_cloud->points.resize(temp_cloud->width*temp_cloud->height);
         for(int i = 0;i<depth_masked.rows;i++)
         {
             for(int j = 0;j<depth_masked.cols;j++)
@@ -195,9 +202,9 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
                 // 获取深度图中(i,j)处的值
                 ushort d = depth_masked.ptr<ushort>(i)[j];
                 // d 可能没有值，若如此，跳过此点
-                if (d == 0 || d!=d)
-                    continue;
-                // d 存在值，则向点云增加一个点
+//                if (d == 0 || d!=d)
+//                    continue;
+//                // d 存在值，则向点云增加一个点
                 PointT p;
 
                 // 计算这个点的空间坐标
@@ -216,11 +223,11 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
                 {
                     clouds_show->points.push_back( p );
                 }
-                temp_cloud->points.push_back(p);
+                temp_cloud->at(j,i) = p;
             }
         }
-        temp_cloud->height = 1;
-        temp_cloud->width = temp_cloud->points.size();
+//        temp_cloud->height = 1;
+//        temp_cloud->width = temp_cloud->points.size();
         clouds[rect_num] = temp_cloud;
     }
     if(show_cloud)
@@ -262,23 +269,55 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     {
         PointCloud::Ptr cloud = clouds[i];
         kinova_arm_moveit_demo::targetState coordinate;
-        coordinate.tag = Obj_Frames[i].label;
-        coordinate.roll = 0;
-        coordinate.pitch = 0;
-        coordinate.yaw = 0;
-        coordinate.x = 0;
-        coordinate.y = 0;
-        coordinate.z = 0;
-        for(size_t j = 0;j<cloud->points.size();j++)
+        coordinate.tag = Obj_Frames[i].label;        
+
+        //downsample the pointcloud by hand
+        PointCloud::Ptr temp_cloud(new PointCloud);
+        temp_cloud->width = 30;
+        temp_cloud->height = 30;
+        temp_cloud->is_dense = false;
+        temp_cloud->points.resize(temp_cloud->width*temp_cloud->height);
+        for(int i = 0;i<temp_cloud->width;i++)
         {
-            coordinate.x += cloud->points[j].x;
-            coordinate.y += cloud->points[j].y;
-            coordinate.z += cloud->points[j].z;
+            for(int j = 0;j<temp_cloud->height;j++)
+            {
+                // 获取深度图中(i,j)处的值
+                temp_cloud->at(i,j) = cloud->at(i+cloud->width/2-15,j+cloud->height/2-15);
+            }
         }
-        int points_size = cloud->points.size();
-        coordinate.x /= points_size;
-        coordinate.y /= points_size;
-        coordinate.z /= points_size;
+
+        //take the center point as grasping point
+        coordinate.x = temp_cloud->at(14,14).x;
+        coordinate.y = temp_cloud->at(14,14).y;
+        coordinate.z = temp_cloud->at(14,14).z;
+
+        //estimate normals
+        pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+        pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
+        ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
+        ne.setMaxDepthChangeFactor(0.02f);
+        ne.setNormalSmoothingSize(10.0f);
+        ne.setInputCloud(temp_cloud);
+        ne.compute(*normals);
+
+        //estimate grasping direction
+        pcl::Normal norm = normals->at(14,14);
+        cv::Mat vector1(3,1,CV_32FC1),vector2(3,1,CV_32FC1),vector(3,1,CV_32FC1);
+        double norm_len = sqrt(norm.normal_x*norm.normal_x+norm.normal_y*norm.normal_y+norm.normal_z*norm.normal_z);
+        vector1.at<float>(0,0) = norm.normal_x/norm_len;
+        vector1.at<float>(1,0) = norm.normal_y/norm_len;
+        vector1.at<float>(2,0) = norm.normal_z/norm_len;
+        vector2.at<float>(0,0) = 1;
+        vector2.at<float>(1,0) = 0;
+        vector2.at<float>(2,0) = 0;
+        float theta = acos(vector1.dot(vector2));
+        vector = vector1.cross(vector2);
+        coordinate.qx = vector.at<float>(0,0)*sin(theta/2);
+        coordinate.qy = vector.at<float>(1,0)*sin(theta/2);
+        coordinate.qz = vector.at<float>(2,0)*sin(theta/2);
+        coordinate.qw = cos(theta/2);
+
+        //put the calculated coordinate into the vector
         coordinate_vec.targets[i] = coordinate;
     }
 }
