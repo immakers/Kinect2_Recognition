@@ -16,7 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-find_package( OpenCV 2.4 REQUIRED)
+find_package( OpenCV 2.4.8 REQUIRED)
 message(" OpenCV_INCLUDE_DIRS=${OpenCV_INCLUDE_DIRS}")
 message(" OpenCV_LIBRARIES=${OpenCV_LIBRARIES}")
 ## Uncomment this if the package has a setup.py. This macro ensures
