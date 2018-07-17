@@ -21,7 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 #set(OpenCV_DIR "/usr/local/opencv320/share/OpenCV")
-find_package( OpenCV 2.4 REQUIRED)
+find_package( OpenCV REQUIRED)
 #include_directories(SYSTEM ${OPENCV_INCLUDE_DIRS} /usr/local/opencv320/include)
 #find_package("/usr/local/opencv320/include/opencv2")
 find_package(PCL 1.7)
