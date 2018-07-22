@@ -54,7 +54,8 @@ typedef pcl::PointCloud<PointT> PointCloud;
 bool show_cloud = false;
 
 //模型路径
-std::string model_path="/home/zhenglongyu/project/catkin_ws/src/iai_kinect2/kinect2_recognition/model/frozen_inference_graph.pb";
+std::string model_path;//="/home/zhenglongyu/project/catkin_ws/src/iai_kinect2/kinect2_recognition/model/frozen_inference_graph.pb";
+float recog_threshold = 0.2;
 
 //点云显示
 pcl::visualization::CloudViewer viewer("pcd viewer");
@@ -103,7 +104,9 @@ void Recognition(std::vector<ObjInfo>& obj_boxes, cv::Mat src)
   //    std::vector<ObjInfo> obj_boxes;
   //    ROS_INFO_STREAM("feed data");
   // step 2
-  if(!FeedData(src))
+  cv::Mat res;
+  cv::cvtColor(src, res, cv::COLOR_BGR2RGB);
+  if(!FeedData(res))
   {
     ROS_ERROR_STREAM("feed data");
     return ;
@@ -111,7 +114,7 @@ void Recognition(std::vector<ObjInfo>& obj_boxes, cv::Mat src)
   obj_boxes.clear();
   //    ROS_INFO_STREAM("detection");
   // step 3
-  if(!Detection(obj_boxes, 0.2))
+  if(!Detection(obj_boxes, recog_threshold))
   {
     ROS_ERROR_STREAM("detection");
     return ;
@@ -429,6 +432,10 @@ int main(int argc, char ** argv)
   //启动ROS节点并获取句柄
   ros::init(argc, argv, "kinect2_recognition");
   ros::NodeHandle nh;
+
+  //获取识别参数
+  model_path = argv[1];
+  nh.getParam("threshold", recog_threshold);
 
   //订阅话题
   message_filters::Subscriber<sensor_msgs::Image> image_rgb_sub(nh, image_rgb_str, 1);
