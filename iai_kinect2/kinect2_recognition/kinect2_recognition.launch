@@ -1,0 +1,4 @@
+<launch>
+<param name="threshold" type="double" value="0.2" />
+ <node name="kinect2_recognition_node" pkg="kinect2_recognition" type="kinect2_recognition_node" args="$(find kinect2_recognition)/model/frozen_inference_graph.pb" output="screen" />
+</launch>
