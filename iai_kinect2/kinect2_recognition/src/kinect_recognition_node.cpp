@@ -269,8 +269,9 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
 
     //downsample the pointcloud by hand
     PointCloud::Ptr temp_cloud(new PointCloud);
-    temp_cloud->width = ceil(0.3*cloud->width);
-    temp_cloud->height = ceil(0.3*cloud->height);
+    temp_cloud->width = ceil(0.4*cloud->width);
+    temp_cloud->height = ceil(0.4*cloud->height);
+
     temp_cloud->is_dense = false;
     temp_cloud->points.resize(temp_cloud->width*temp_cloud->height);
     ROS_INFO_STREAM("The width and height of the reduced cloud is "<<temp_cloud->width<<" "<<temp_cloud->height);
@@ -281,6 +282,28 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
       {
         // 获取深度图中(i,j)处的值
         temp_cloud->at(i,j) = cloud->at(i+cloud->width/2-temp_cloud->width/2,j+cloud->height/2-temp_cloud->height/2);
+        if(temp_cloud->at(i,j).x != temp_cloud->at(i,j).x || temp_cloud->at(i,j).y != temp_cloud->at(i,j).y || temp_cloud->at(i,j).z != temp_cloud->at(i,j).z)
+        {
+          if(j>0)
+            temp_cloud->at(i,j) = temp_cloud->at(i,j-1);
+          else
+          {
+            if(i>0)
+              temp_cloud->at(i,j) = temp_cloud->at(i-1,j);
+            else
+            {
+              PointT temp_point;
+              temp_point.x = 0;
+              temp_point.y = 0;
+              temp_point.z = 0;
+              temp_point.r = 255;
+              temp_point.g = 0;
+              temp_point.b = 0;
+              temp_point.a = 0;
+              temp_cloud->at(i,j)=temp_point;
+            }
+          }
+        }
       }
     }
 
@@ -306,46 +329,58 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     coordinate.y /= point_count;
     coordinate.z /= point_count;
 
-    //estimate normals
-    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-    pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
-    ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
-    ne.setMaxDepthChangeFactor(0.02f);
-    ne.setNormalSmoothingSize(10.0f);
-    ne.setInputCloud(temp_cloud);
-    ros::Time start_esti = ros::Time::now();
-    ne.compute(*normals);
-    ros::Time end_esti = ros::Time::now();
-    ros::Duration interval = end_esti-start_esti;
-    ROS_INFO_STREAM("Estimating normal vector for "<<interval.toSec()<<" s!!!");
-
     //estimate grasping direction
     pcl::Normal norm;
     norm.normal_x = 0;
     norm.normal_y = 0;
     norm.normal_z = 0;
     int norm_count = 0;
-    for(int i = 0;i<normals->width;i++)
+
+    if(temp_cloud->width<15 || temp_cloud->height<15)
     {
-      for(int j = 0;j<normals->height;j++)
-      {
-        pcl::Normal norm_temp = normals->at(i,j);
-        if(norm_temp.normal_x!=norm_temp.normal_x || norm_temp.normal_y != norm_temp.normal_y || norm_temp.normal_z!=norm_temp.normal_z)
-          continue;
-        double norm_len = sqrt(norm_temp.normal_x*norm_temp.normal_x+norm_temp.normal_y*norm_temp.normal_y+norm_temp.normal_z*norm_temp.normal_z);
-        float normal[3];
-        normal[0] = norm_temp.normal_x/norm_len;
-        normal[1] = norm_temp.normal_y/norm_len;
-        normal[2] = norm_temp.normal_z/norm_len;
-        norm.normal_x += normal[0];
-        norm.normal_y += normal[1];
-        norm.normal_z += normal[2];
-        norm_count++;
-      }
+      norm.normal_x = 1;
+      norm.normal_y = 0;
+      norm.normal_z = 0;
+      norm_count = 0;
     }
-    norm.normal_x /= norm_count;
-    norm.normal_y /= norm_count;
-    norm.normal_z /= norm_count;
+    else
+    {
+      //estimate normals
+      pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+      pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
+      ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
+      ne.setMaxDepthChangeFactor(0.02f);
+      ne.setNormalSmoothingSize(10.0f);
+      ne.setInputCloud(temp_cloud);
+      ros::Time start_esti = ros::Time::now();
+      ne.compute(*normals);
+      ros::Time end_esti = ros::Time::now();
+      ros::Duration interval = end_esti-start_esti;
+      ROS_INFO_STREAM("Estimating normal vector for "<<interval.toSec()<<" s!!!");
+
+      for(int i = 0;i<normals->width;i++)
+      {
+        for(int j = 0;j<normals->height;j++)
+        {
+          pcl::Normal norm_temp = normals->at(i,j);
+          if(norm_temp.normal_x!=norm_temp.normal_x || norm_temp.normal_y != norm_temp.normal_y || norm_temp.normal_z!=norm_temp.normal_z)
+            continue;
+          double norm_len = sqrt(norm_temp.normal_x*norm_temp.normal_x+norm_temp.normal_y*norm_temp.normal_y+norm_temp.normal_z*norm_temp.normal_z);
+          float normal[3];
+          normal[0] = norm_temp.normal_x/norm_len;
+          normal[1] = norm_temp.normal_y/norm_len;
+          normal[2] = norm_temp.normal_z/norm_len;
+          norm.normal_x += normal[0];
+          norm.normal_y += normal[1];
+          norm.normal_z += normal[2];
+          norm_count++;
+        }
+      }
+      norm.normal_x /= norm_count;
+      norm.normal_y /= norm_count;
+      norm.normal_z /= norm_count;
+    }
+
     ROS_INFO_STREAM("normal vector is "<<norm_count<<" "<<norm.normal_x<<" "<<norm.normal_y<<" "<<norm.normal_z);
 
     cv::Mat vector1(3,1,CV_32FC1),vector2(3,1,CV_32FC1),vector(3,1,CV_32FC1);
