@@ -45,6 +45,7 @@ double camera_fy = 519.0;
 std::string image_rgb_str =  "/kinect2/qhd/image_color_rect";
 std::string image_depth_str = "/kinect2/qhd/image_depth_rect";
 std::string cam_info_str = "/kinect2/qhd/camera_info";
+bool simulation_on;
 
 //点云定义
 typedef pcl::PointXYZRGBA PointT;
@@ -106,10 +107,10 @@ cv::Rect toRect(cv::Point* point)
   return rect;
 }
 
-void InitRecognition()
+void InitRecognition(int image_wid, int image_hei, int image_chan)
 {
   // step 1
-  if(!InitSession(model_path, 1, 960, 540, 3))
+  if(!InitSession(model_path, 1, image_wid, image_hei, image_chan))
   {
     ROS_ERROR_STREAM("init session failed!!!the path is :"<<model_path);
     return ;
@@ -570,7 +571,8 @@ int main(int argc, char ** argv)
     recog_threshold = 0.2;
   if(!nh.getParam("show_cloud", show_cloud))
     show_cloud = false;
-
+  if(!nh.getParam("simulation", simulation_on))
+      simulation_on = false;
   //订阅话题
   message_filters::Subscriber<sensor_msgs::Image> image_rgb_sub(nh, image_rgb_str, 1);
   message_filters::Subscriber<sensor_msgs::Image>image_depth_sub(nh, image_depth_str, 1);
@@ -588,8 +590,10 @@ int main(int argc, char ** argv)
   detect_result_pub = nh.advertise<kinova_arm_moveit_demo::targetsVector>(detect_result_str.c_str(), 1000);
 
   //初始化识别
-  InitRecognition();
-
+  if(simulation_on)
+      InitRecognition(800, 800, 3);
+  else
+      InitRecognition(960, 540, 3);
   //ros主循环
   ros::spin();
   while(ros::ok());
