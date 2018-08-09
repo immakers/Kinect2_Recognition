@@ -127,6 +127,11 @@ void Recognition(std::vector<ObjInfo>& obj_boxes, cv::Mat src)
     return ;
   }
 
+  if(src.channels()!=3)
+  {
+    ROS_ERROR_STREAM(" image is not 3 channels !!!");
+    return ;
+  }
   ROS_INFO_STREAM("Object Detection!");
 
   //    std::vector<ObjInfo> obj_boxes;
