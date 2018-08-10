@@ -35,7 +35,7 @@
 #include"ssd_test/ssd_detection.h"
 
 //相机内参
-double camera_factor = 1000;
+double camera_factor = 255/4095;
 double camera_cx = 325.5;
 double camera_cy = 253.5;
 double camera_fx = 518.0;
@@ -191,7 +191,7 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
       for(int j = rect.y;j<rect.y+temp_cloud->height;j++)
       {
         // 获取深度图中(i,j)处的值
-        ushort d = image_depth.ptr<ushort>(j)[i];
+        uchar d = image_depth.ptr<uchar>(j)[i];
 
         // 计算这个点的空间坐标
         PointT p;
