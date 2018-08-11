@@ -577,7 +577,11 @@ int main(int argc, char ** argv)
   if(!nh.getParam("show_cloud", show_cloud))
     show_cloud = false;
   if(!nh.getParam("simulation", simulation_on))
+  {
       simulation_on = false;
+      camera_factor = 1000;
+  }
+      
   //订阅话题
   message_filters::Subscriber<sensor_msgs::Image> image_rgb_sub(nh, image_rgb_str, 1);
   message_filters::Subscriber<sensor_msgs::Image>image_depth_sub(nh, image_depth_str, 1);
