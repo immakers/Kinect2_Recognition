@@ -6,5 +6,5 @@ float32 qx
 float32 qy
 float32 qz
 float32 qw
-int32 px
-int32 py
+int8 px
+int8 py
