@@ -48,11 +48,11 @@
 #include"ssd_test/ssd_detection.h"
 
 //相机内参
-double camera_factor = 255/4095;
-double camera_cx = 325.5;
-double camera_cy = 253.5;
-double camera_fx = 518.0;
-double camera_fy = 519.0;
+double camera_factor = 1000;
+double camera_cx = 479.8;
+double camera_cy = 269.8;
+double camera_fx = 540.7;
+double camera_fy = 540.7;
 
 //kinect相机话题
 std::string image_rgb_str =  "/kinect2/qhd/image_color_rect";
@@ -76,7 +76,7 @@ pcl::visualization::CloudViewer viewer("pcd viewer");
 PointCloud::Ptr clouds_show(new PointCloud);
 std::vector<PointCloud::Ptr> clouds;
 kinova_arm_moveit_demo::targetsVector coordinate_vec;
-std::vector<int*>px_py;
+std::vector<int32_t*>px_py;
 
 //图像显示
 std::string window_rgb_top = "rgb_video";
@@ -109,15 +109,6 @@ bool compxy(const cv::Point &a, const cv::Point &b){
         return true;
     else                ///这里的else return false非常重要！！！！！
         return false;
-}
-
-void norm_vec(Eigen::Vector3f& vec)
-{
-  float len = 0;
-  len = sqrt(vec(0)*vec(0)+vec(1)*vec(1)+vec(2)*vec(2));
-  vec(0) = vec(0)/len;
-  vec(1) = vec(1)/len;
-  vec(2) = vec(2)/len;
 }
 
 cv::Rect toRect(cv::Point* point)
@@ -181,95 +172,53 @@ void Recognition(std::vector<ObjInfo>& obj_boxes, cv::Mat src)
 
 void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_depth)
 {
-  clouds.resize(rects.size());
-  px_py.resize(rects.size());
+  clouds.clear();
+  px_py.clear();
   for(size_t rect_num = 0;rect_num<rects.size();rect_num++)
   {
     cv::Point* rect_points = rects[rect_num].bbox;
     cv::Rect rect = toRect(rect_points);
-//    cv::Mat depth_masked;
-//    cv::Mat depth_mask = cv::Mat::zeros(image_depth.size(),CV_8UC1);
-
-//    std::vector<std::vector<cv::Point>> contour;
-//    std::vector<cv::Point> pts;
-//    pts.push_back(rect.);
-//    pts.push_back(rect[1]);
-//    pts.push_back(rect[2]);
-//    pts.push_back(rect[3]);
-//    contour.push_back(pts);
-//    cv::drawContours(depth_mask,contour,0,cv::Scalar::all(255),-1);
-//    image_depth.copyTo(depth_masked,depth_mask);
-
-//    //grab_cut
-//    cv::Mat mask;
-//    mask.create(image_rgb.size(), CV_8UC1);
-//    mask.setTo(cv::GC_BGD);
-//    (mask(rect)).setTo(cv::Scalar(cv::GC_PR_FGD));
-//    cv::Mat bgdModel, fgdModel;
-//    cv::grabCut(image_rgb, mask, rect, bgdModel, fgdModel, 1, cv::GC_INIT_WITH_RECT);
-//    cv::Mat depth_mask;
-//    depth_mask.create(mask.size(), CV_8UC1);
-//    depth_mask = mask & 1;
+//    ROS_INFO_STREAM("the coordinate of the rect is "<<rect.x<<" "<<rect.y);
+//    ROS_INFO_STREAM("the height of the rect is "<<rect.height<<" the width of the rect is"<<rect.width);
 
     PointCloud::Ptr temp_cloud(new PointCloud);
-    temp_cloud->width = rect.width;
-    temp_cloud->height = rect.height;
     temp_cloud->is_dense = false;
-    temp_cloud->points.resize(temp_cloud->width*temp_cloud->height);
-    for(int i = rect.x;i<rect.x+temp_cloud->width;i++)
+    for(int i = rect.x;i<rect.x+rect.width;i++)
     {
-       for(int j = rect.y;j<rect.y+temp_cloud->height;j++)
-       {
-//        if(!depth_mask.ptr<uchar>(i)[j])
-//          continue;
+      for(int j = rect.y;j<rect.y+rect.height;j++)
+      {
+        //        if(!depth_mask.ptr<uchar>(i)[j])
+        //          continue;
         // 获取深度图中(i,j)处的值
-         ushort d;
-        if(simulation_on)
-          d = (ushort)image_depth.ptr<uchar>(j)[i];
-        else
-          d = image_depth.ptr<ushort>(j)[i];
+        ushort d = image_depth.ptr<ushort>(j)[i];
 
         // 计算这个点的空间坐标
         PointT p;
+        p.z = double(d) / camera_factor;
+        p.x = (i- camera_cx) * p.z / camera_fx;
+        p.y = (j - camera_cy) * p.z / camera_fy;
 
-//        // d 可能没有值，若如此，跳过此点
-//        if (d == 0 || d!=d)
-//        {
-//          p.z = 0;
-//          p.x = (j- camera_cx) * p.z / camera_fx;
-//          p.y = (i - camera_cy) * p.z / camera_fy;
+        // 从rgb图像中获取它的颜色
+        // rgb是三通道的BGR格式图，所以按下面的顺序获取颜色
+        p.b = image_rgb.ptr<uchar>(j)[i*3];
+        p.g = image_rgb.ptr<uchar>(j)[i*3+1];
+        p.r = image_rgb.ptr<uchar>(j)[i*3+2];
 
-//          // 从rgb图像中获取它的颜色
-//          // rgb是三通道的BGR格式图，所以按下面的顺序获取颜色
-//          p.b = image_rgb.ptr<uchar>(i)[j*3];
-//          p.g = image_rgb.ptr<uchar>(i)[j*3+1];
-//          p.r = image_rgb.ptr<uchar>(i)[j*3+2];
-//        }
-          p.z = double(d) / camera_factor;
-          p.x = (i- camera_cx) * p.z / camera_fx;
-          p.y = (j - camera_cy) * p.z / camera_fy;
-
-          // 从rgb图像中获取它的颜色
-          // rgb是三通道的BGR格式图，所以按下面的顺序获取颜色
-          p.b = image_rgb.ptr<uchar>(j)[i*3];
-          p.g = image_rgb.ptr<uchar>(j)[i*3+1];
-          p.r = image_rgb.ptr<uchar>(j)[i*3+2];
-
-          // 把p加入到点云中
-          if(show_cloud)
-          {
-            clouds_show->points.push_back( p );
-          }
-
-          temp_cloud->at(i-rect.x,j-rect.y) = p;
-
+        // 把p加入到点云中
+        if(show_cloud)
+        {
+          clouds_show->points.push_back( p );
+        }
+        temp_cloud->points.push_back( p );
       }
     }
-//    temp_cloud->height = 1;
-//    temp_cloud->width = temp_cloud->points.size();
-    clouds[rect_num] = temp_cloud;
-    int temp_xy[2]={rect.x+temp_cloud->width/2, rect.y+temp_cloud->height/2};
-    px_py[rect_num] = temp_xy;
+    temp_cloud->height = 1;
+    temp_cloud->width = temp_cloud->points.size();
+    clouds.push_back(temp_cloud);
+    int32_t* temp_xy = new int32_t[2];
+    temp_xy[0] = int32_t(rect.x+rect.width/2);temp_xy[1] = int32_t(rect.y+rect.height/2);
+    px_py.push_back(temp_xy);
+//    ROS_INFO_STREAM("the center point of the rect is "<<temp_xy[0]<<" "<<temp_xy[1]);
   }
   if(show_cloud)
   {
@@ -304,6 +253,8 @@ void DrawQuadrilateral(cv::Mat& image, cv::Point rect[])
 
 void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
 {
+//  ROS_INFO_STREAM("the obj frames left is "<<Obj_Frames.size());
+//  ROS_INFO_STREAM("the px_py size is "<<px_py.size()<<" "<<px_py[0][0]<<" "<<px_py[0][1]);
   coordinate_vec.targets.clear();
   coordinate_vec.targets.resize(Obj_Frames.size());
   for(size_t i = 0;i<Obj_Frames.size();i++)
@@ -315,56 +266,63 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     coordinate.px = temp_xy[0];
     coordinate.py = temp_xy[1];
 
-    //cloud segmentation
-    std::vector<pcl::PointIndices> cluster_indices;
-    pcl::search::Search<PointT>::Ptr KdTree;
-    //Å·Êœ·ÖžîÆ÷
-    pcl::EuclideanClusterExtraction<PointT> ec;
-    ec.setClusterTolerance (0.02); // 2cm
-    ec.setMinClusterSize (cloud->points.size()/300);
-    ec.setMaxClusterSize (cloud->points.size()*5/6);
-    //ËÑË÷²ßÂÔÊ÷
-    ec.setSearchMethod (KdTree);
-    ec.setInputCloud (cloud);
-    ec.extract (cluster_indices);
-    PointCloud::Ptr cloud_seg(new PointCloud);
-    for(int seg_i = 0;seg_i<cluster_indices.size()/2;seg_i++)
-    {
-        pcl::PointIndices seg_index = cluster_indices[seg_i];
-        for(size_t i = 0;i<seg_index.indices.size();i++)
-        {
-            PointT temp_p = cloud->points[seg_index.indices[i]];
-            cloud_seg->points.push_back(temp_p);
-        }
-    }
+//    //cloud segmentation
+//    ros::Time seg_begin = ros::Time::now();
+//    std::vector<pcl::PointIndices> cluster_indices;
+//    pcl::search::Search<PointT>::Ptr KdTree;
+//    //set cluster size
+//    pcl::EuclideanClusterExtraction<PointT> ec;
+//    ec.setClusterTolerance (0.02); // 2cm
+//    ec.setMinClusterSize (cloud->points.size()/300);
+//    ec.setMaxClusterSize (cloud->points.size()*5/6);
+//    //input cloud
+//    ec.setSearchMethod (KdTree);
+//    ec.setInputCloud (cloud);
+//    ec.extract (cluster_indices);
+//    ros::Duration seg_time = ros::Time::now()-seg_begin;
+//    ROS_INFO_STREAM("segmentation time is "<<seg_time.toSec());
+//    PointCloud::Ptr cloud_seg(new PointCloud);
+//    for(int seg_i = 0;seg_i<cluster_indices.size()/2;seg_i++)
+//    {
+//        pcl::PointIndices seg_index = cluster_indices[seg_i];
+//        for(size_t i = 0;i<seg_index.indices.size();i++)
+//        {
+//            PointT temp_p = cloud->points[seg_index.indices[i]];
+//            cloud_seg->points.push_back(temp_p);
+//        }
+//    }
 
     ////利用PCA主元分析法获得点云的三个主方向，获取质心，计算协方差，获得协方差矩阵，求取协方差矩阵的特征值和特长向量，特征向量即为主方向。
     Eigen::Vector4f pcaCentroid;
-    ROS_INFO_STREAM("calculate xyz!");
-    pcl::compute3DCentroid(*cloud_seg, pcaCentroid);
+    pcl::compute3DCentroid(*cloud, pcaCentroid);
     coordinate.x = pcaCentroid(0);
     coordinate.y = pcaCentroid(1);
     coordinate.z = pcaCentroid(2);
-    ROS_INFO_STREAM("calculate xyz!"<<coordinate.x<<coordinate.y<<coordinate.z);
+//    ROS_INFO_STREAM("calculate xyz:"<<coordinate.x<<" "<<coordinate.y<<" "<<coordinate.z);
+
+    ros::Time axis_begin = ros::Time::now();
     Eigen::Matrix3f covariance;
-    pcl::computeCovarianceMatrixNormalized(*cloud_seg, pcaCentroid, covariance);
-    ROS_INFO_STREAM("computeCovariance!");
+    pcl::computeCovarianceMatrixNormalized(*cloud, pcaCentroid, covariance);
+//    ROS_INFO_STREAM("computeCovariance!");
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
     Eigen::Matrix3f eigenVectorsPCA = eigen_solver.eigenvectors();
+    ros::Time axis_end = ros::Time::now();
+    ros::Duration axis_interval = axis_end-axis_begin;
+//    ROS_INFO_STREAM("computing size "<<cloud->points.size()<<" for "<<axis_interval.toSec()<<"s!!!");
+
     eigenVectorsPCA.col(2) = eigenVectorsPCA.col(0).cross(eigenVectorsPCA.col(1)); //校正主方向间垂直
     eigenVectorsPCA.col(0) = eigenVectorsPCA.col(1).cross(eigenVectorsPCA.col(2));
     eigenVectorsPCA.col(1) = eigenVectorsPCA.col(2).cross(eigenVectorsPCA.col(0));
     Eigen::Vector3f orient0 = eigenVectorsPCA.col(0);
     Eigen::Vector3f orient1 = eigenVectorsPCA.col(1);
-    Eigen::Vector3f orient2 = eigenVectorsPCA.col(2);
-    norm_vec(orient0);norm_vec(orient1);norm_vec(orient2);
+    Eigen::Vector3f orient2 = eigenVectorsPCA.col(2);    
     float max_orient0 = 0, max_orient1 = 0, max_orient2 = 0;
-    for(size_t i = 0;i<cloud_seg->points.size();i++)
+    for(size_t i = 0;i<cloud->points.size();i++)
     {
       Eigen::Vector3f temp_vec;
-      temp_vec(0) = cloud_seg->points[i].x-coordinate.x;
-      temp_vec(1) = cloud_seg->points[i].y-coordinate.y;
-      temp_vec(2) = cloud_seg->points[i].z-coordinate.z;
+      temp_vec(0) = cloud->points[i].x-coordinate.x;
+      temp_vec(1) = cloud->points[i].y-coordinate.y;
+      temp_vec(2) = cloud->points[i].z-coordinate.z;
       float temp_orient0 = abs(temp_vec.dot(orient0));
       float temp_orient1 = abs(temp_vec.dot(orient1));
       float temp_orient2 = abs(temp_vec.dot(orient2));
@@ -425,41 +383,23 @@ void RecognitionCallback(
     while(obj_it!=Obj_Frames.end())
     {
       //保留相同标签下置信度最大的物体
-      if(obj_it->label == (obj_it+1)->label)
+      if(obj_it != Obj_Frames.end()-1 && obj_it->label == (obj_it+1)->label)
       {
         obj_it = Obj_Frames.erase(obj_it);
         continue;
       }
-
-      //方形约束
-//      double l1 = sqrt((bbox[0].x-bbox[2].x)*(bbox[0].x-bbox[2].x)+(bbox[0].y-bbox[2].y)*(bbox[0].y-bbox[2].y));
-//      double l2 = sqrt((bbox[1].x-bbox[3].x)*(bbox[1].x-bbox[3].x)+(bbox[1].y-bbox[3].y)*(bbox[1].y-bbox[3].y));
-//      if(l1*l2<1e-5)
-//      {
-//        obj_it = Obj_Frames.erase(obj_it);
-//        continue;
-//      }
-//      if(l1/l2<0.8 || l2/l1 < 0.8)
-//      {
-//        obj_it = Obj_Frames.erase(obj_it);
-//        continue;
-//      }
-
-//      //面积约束
-//      double area = 0.5*l1*l2;
-//      double cos_alpha = (bbox[2].x-bbox[0].x)*(bbox[3].x-bbox[1].x)+(bbox[2].y-bbox[0].y)*(bbox[3].y-bbox[1].y);
-//      cos_alpha=cos_alpha/(l1*l2);
-//      area*=sqrt(1-cos_alpha*cos_alpha);
-
-//      if(area>(mat_image_rgb.rows*mat_image_rgb.cols)*0.7)
-//      {
-//        obj_it = Obj_Frames.erase(obj_it);
-//        continue;
-//      }
+      cv::Rect rect = toRect(obj_it->bbox);
+      if(rect.area()>100000)
+      {
+        obj_it = Obj_Frames.erase(obj_it);
+        continue;
+      }
       obj_it++;
     }
+//    ROS_INFO_STREAM(Obj_Frames.size()<<" images left!!!");
 
     //相机内参提取
+//    ROS_INFO_STREAM("the K matrix is "<<cam_info->K[0]<<" "<<cam_info->K[4]<<" "<<cam_info->K[2]<<" "<<cam_info->K[5]);
     camera_fx = cam_info->K[0] != 0?cam_info->K[0]:camera_fx;
     camera_fy = cam_info->K[4] != 0?cam_info->K[4]:camera_fy;
     camera_cx = cam_info->K[2] !=0?cam_info->K[2]:camera_cx;
@@ -471,7 +411,7 @@ void RecognitionCallback(
       clouds_show->points.clear();
     }
     // GetCloud(cv::Rect(round(Obj_Frame.x), round(Obj_Frame.y), round(Obj_Frame.width), round(Obj_Frame.height)), mat_image_rgb, mat_image_depth );
-    ROS_INFO_STREAM("Getting Cloud!!!");
+//    ROS_INFO_STREAM("Getting Cloud!!!");
     GetCloud(Obj_Frames, mat_image_rgb, mat_image_depth );
 
     //显示点云
@@ -566,10 +506,8 @@ int main(int argc, char ** argv)
   if(!nh.getParam("show_cloud", show_cloud))
     show_cloud = false;
   if(!nh.getParam("simulation", simulation_on))
-  {
-        simulation_on = false;
-        camera_factor = 1000;
-  }
+    simulation_on = false;
+
 
   //订阅话题
   message_filters::Subscriber<sensor_msgs::Image> image_rgb_sub(nh, image_rgb_str, 1);
