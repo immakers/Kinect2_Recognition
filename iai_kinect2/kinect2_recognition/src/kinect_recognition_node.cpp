@@ -183,8 +183,8 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
   cv::equalizeHist(HSV_split[2],HSV_split[2]);
   cv::merge(HSV_split,image_HSV);
   cv::Mat img_thresholded;
-//  int minh = 0, maxh = 180, mins = 0, maxs = 255, minv = 0, maxv = 46;
-  int minh = 0, maxh = 10, mins = 43, maxs = 255, minv = 46, maxv = 255;
+  int minh = 0, maxh = 180, mins = 0, maxs = 255, minv = 0, maxv = 46;
+//  int minh = 0, maxh = 10, mins = 43, maxs = 255, minv = 46, maxv = 255;
   cv::inRange(image_HSV, cv::Scalar(minh, mins, minv), cv::Scalar(maxh, maxs, maxv), img_thresholded);
 
   //开操作 (去除一些噪点)
