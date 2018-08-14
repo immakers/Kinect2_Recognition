@@ -174,6 +174,25 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
 {
   clouds.clear();
   px_py.clear();
+
+  //color recognition
+  cv::Mat image_HSV;
+  std::vector<cv::Mat> HSV_split;
+  cv::cvtColor(image_rgb, image_HSV, cv::COLOR_BGR2HSV);
+  cv::split(image_HSV, HSV_split);
+  cv::equalizeHist(HSV_split[2],HSV_split[2]);
+  cv::merge(HSV_split,image_HSV);
+  cv::Mat img_thresholded;
+//  int minh = 0, maxh = 180, mins = 0, maxs = 255, minv = 0, maxv = 46;
+  int minh = 0, maxh = 10, mins = 43, maxs = 255, minv = 46, maxv = 255;
+  cv::inRange(image_HSV, cv::Scalar(minh, mins, minv), cv::Scalar(maxh, maxs, maxv), img_thresholded);
+
+  //开操作 (去除一些噪点)
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+  cv::morphologyEx(img_thresholded, img_thresholded, cv::MORPH_OPEN, element);
+  //闭操作 (连接一些连通域)
+  cv::morphologyEx(img_thresholded, img_thresholded, cv::MORPH_CLOSE, element);
+
   for(size_t rect_num = 0;rect_num<rects.size();rect_num++)
   {
     cv::Point* rect_points = rects[rect_num].bbox;
@@ -187,8 +206,9 @@ void GetCloud(std::vector<ObjInfo>& rects, cv::Mat image_rgb, cv::Mat image_dept
     {
       for(int j = rect.y;j<rect.y+rect.height;j++)
       {
-        //        if(!depth_mask.ptr<uchar>(i)[j])
-        //          continue;
+        //remove black area of the image
+        if(img_thresholded.ptr<uchar>(j)[i]>0)
+          continue;
         // 获取深度图中(i,j)处的值
         ushort d = image_depth.ptr<ushort>(j)[i];
 
@@ -300,14 +320,14 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     coordinate.z = pcaCentroid(2);
 //    ROS_INFO_STREAM("calculate xyz:"<<coordinate.x<<" "<<coordinate.y<<" "<<coordinate.z);
 
-    ros::Time axis_begin = ros::Time::now();
+//    ros::Time axis_begin = ros::Time::now();
     Eigen::Matrix3f covariance;
     pcl::computeCovarianceMatrixNormalized(*cloud, pcaCentroid, covariance);
 //    ROS_INFO_STREAM("computeCovariance!");
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
     Eigen::Matrix3f eigenVectorsPCA = eigen_solver.eigenvectors();
-    ros::Time axis_end = ros::Time::now();
-    ros::Duration axis_interval = axis_end-axis_begin;
+//    ros::Time axis_end = ros::Time::now();
+//    ros::Duration axis_interval = axis_end-axis_begin;
 //    ROS_INFO_STREAM("computing size "<<cloud->points.size()<<" for "<<axis_interval.toSec()<<"s!!!");
 
     eigenVectorsPCA.col(2) = eigenVectorsPCA.col(0).cross(eigenVectorsPCA.col(1)); //校正主方向间垂直
@@ -316,7 +336,7 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     Eigen::Vector3f orient0 = eigenVectorsPCA.col(0);
     Eigen::Vector3f orient1 = eigenVectorsPCA.col(1);
     Eigen::Vector3f orient2 = eigenVectorsPCA.col(2);    
-    float max_orient0 = 0, max_orient1 = 0, max_orient2 = 0;
+    float max_orient[3] = {0, 0, 0};
     for(size_t i = 0;i<cloud->points.size();i++)
     {
       Eigen::Vector3f temp_vec;
@@ -326,31 +346,23 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
       float temp_orient0 = abs(temp_vec.dot(orient0));
       float temp_orient1 = abs(temp_vec.dot(orient1));
       float temp_orient2 = abs(temp_vec.dot(orient2));
-      max_orient0 = temp_orient0>max_orient0?temp_orient0:max_orient0;
-      max_orient1 = temp_orient1>max_orient1?temp_orient1:max_orient1;
-      max_orient2 = temp_orient2>max_orient2?temp_orient2:max_orient2;
+      max_orient[0] = temp_orient0>max_orient[0]?temp_orient0:max_orient[0];
+      max_orient[1] = temp_orient1>max_orient[1]?temp_orient1:max_orient[1];
+      max_orient[2] = temp_orient2>max_orient[2]?temp_orient2:max_orient[2];
     }
-    Eigen::Vector3f orient;
-    if(max_orient0>max_orient1 && max_orient0>max_orient2)
-    {
-      orient = orient0;
-    }
-    else
-    {
-      if(max_orient1>max_orient0 && max_orient1>max_orient2)
-      {
-        orient = orient1;
-      }
-      else
-        orient = orient2;
-    }
-    Eigen::Vector3f orient_x(1,0,0);
-    float theta = acos(orient.dot(orient_x));
-    Eigen::Vector3f rotate_axis = orient.cross(orient_x);
-    coordinate.qx = rotate_axis(0)*sin(theta/2);
-    coordinate.qy = rotate_axis(1)*sin(theta/2);
-    coordinate.qz = rotate_axis(2)*sin(theta/2);
-    coordinate.qw = cos(theta/2);
+
+    std::vector<size_t> idx(3);
+    for(size_t i = 0;i!=idx.size();i++)idx[i] = i;
+     // 通过比较v的值对索引idx进行排序
+    std::sort(idx.begin(), idx.end(), [& max_orient](size_t i1, size_t i2) {return max_orient[i1] < max_orient[i2];});
+    Eigen::Matrix3f rotation;
+    for(size_t i = 0;i<3;i++)
+      rotation.col(i) = eigenVectorsPCA.col(idx[i]);
+    Eigen::Quaternionf quaternion(rotation);
+    coordinate.qx = quaternion.x();
+    coordinate.qy = quaternion.y();
+    coordinate.qz = quaternion.z();
+    coordinate.qw = quaternion.w();
     //put the calculated coordinate into the vector
     coordinate_vec.targets[i] = coordinate;
   }
