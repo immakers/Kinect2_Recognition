@@ -1,6 +1,0 @@
-<launch>
-<param name="threshold" type="double" value="0.2" />
-<param name="show_cloud" type="bool" value="true" />
-<param name="simulation" type = "bool" value="false" />
- <node name="kinect2_recognition_node" pkg="kinect2_recognition" type="kinect2_recognition_node" args="$(find kinect2_recognition)/model/frozen_inference_graph.pb" output="screen" />
-</launch>
