@@ -362,6 +362,10 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     rotation(1,2) = 0;
     rotation(2,2) = 1;
     rotation.col(1) = rotation.col(2).cross(rotation.col(0));
+    float len = sqrt(rotation(0,1)*rotation(0,1)+rotation(1,1)*rotation(1,1)+rotation(2,1)*rotation(2,1));
+    rotation(0,1)/=len;
+    rotation(1,1)/=len;
+    rotation(2,1)/=len;
     rotation.col(0) = rotation.col(1).cross(rotation.col(2));
     Eigen::Quaternionf quaternion(rotation);
     coordinate.qx = quaternion.x();
