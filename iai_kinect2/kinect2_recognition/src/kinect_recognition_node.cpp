@@ -356,8 +356,13 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
      // 通过比较v的值对索引idx进行排序
     std::sort(idx.begin(), idx.end(), [& max_orient](size_t i1, size_t i2) {return max_orient[i1] < max_orient[i2];});
     Eigen::Matrix3f rotation;
-    for(size_t i = 0;i<3;i++)
-      rotation.col(i) = eigenVectorsPCA.col(idx[i]);
+//    for(size_t i = 0;i<3;i++)
+    rotation.col(0) = eigenVectorsPCA.col(idx[2]);
+    rotation(0,2) = 0;
+    rotation(1,2) = 0;
+    rotation(2,2) = 1;
+    rotation.col(1) = rotation.col(2).cross(rotation.col(0));
+    rotation.col(0) = rotation.col(1).cross(rotation.col(2));
     Eigen::Quaternionf quaternion(rotation);
     coordinate.qx = quaternion.x();
     coordinate.qy = quaternion.y();
