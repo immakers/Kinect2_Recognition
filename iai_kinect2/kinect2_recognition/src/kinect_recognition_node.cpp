@@ -276,7 +276,7 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
 //  ROS_INFO_STREAM("the obj frames left is "<<Obj_Frames.size());
 //  ROS_INFO_STREAM("the px_py size is "<<px_py.size()<<" "<<px_py[0][0]<<" "<<px_py[0][1]);
   coordinate_vec.targets.clear();
-  coordinate_vec.targets.resize(Obj_Frames.size());
+//  coordinate_vec.targets.resize(Obj_Frames.size());
   for(size_t i = 0;i<Obj_Frames.size();i++)
   {
     PointCloud::Ptr cloud = clouds[i];
@@ -318,6 +318,9 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     coordinate.x = pcaCentroid(0);
     coordinate.y = pcaCentroid(1);
     coordinate.z = pcaCentroid(2);
+    float coordinate_len = sqrt(coordinate.x*coordinate.x+coordinate.y*coordinate.y+coordinate.z*coordinate.z);
+    if(coordinate_len<1e-5)
+        continue;
 //    ROS_INFO_STREAM("calculate xyz:"<<coordinate.x<<" "<<coordinate.y<<" "<<coordinate.z);
 
 //    ros::Time axis_begin = ros::Time::now();
@@ -373,7 +376,7 @@ void calculate_clouds_coordinate(std::vector<ObjInfo>&Obj_Frames)
     coordinate.qz = quaternion.z();
     coordinate.qw = quaternion.w();
     //put the calculated coordinate into the vector
-    coordinate_vec.targets[i] = coordinate;
+    coordinate_vec.targets.push_back(coordinate);
   }
 }
 
